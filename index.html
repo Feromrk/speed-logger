@@ -83,17 +83,25 @@
 			alignTicks: false
 	   },
 	   yAxis: [
+	   {
+			title: {
+				text: 'Devices in network'
+			},
+			height: y * 0.15
+		},
 		{
 			title: {
 				text: 'Download MB/s'
 			},
+			top: y * 0.27,
+			offset: 0,
 			height: y * 0.30
 		}, {
 			title: {
 				text: 'Upload MB/s'
 			},
-			top: y * 0.40,
-			height: y * 0.30,
+			top: y * 0.61,
+			height: y * 0.10,
 			offset: 0
 		}, {
 			title: {
@@ -152,6 +160,8 @@
 		var text = '<b>'+this.series.name + '</b>: ';
 		if(this.series.name == 'Pings') {
 			text = text + this.y + ' ms';
+		} else if(this.series.name == 'Devices') {
+			text = text + this.y;
 		} else {
 			text = text + formatBytes(this.y);
 		}
@@ -165,7 +175,8 @@
 		console.log("get history");
     // Remove all the data
     while(chart.series.length > 0)
-      chart.series[0].remove(false);
+	  chart.series[0].remove(false);
+	  console.log(history);
 		history.forEach(function(serie, key) {
 			serie['tooltip'] = {
 				pointFormatter: pointFormatter

@@ -8,13 +8,23 @@ Requires the speedtest-cli Python CLI tool: https://github.com/sivel/speedtest-c
 
 - Install speedtest-cli (`pip install speedtest-cli` or `easy_install speedtest-cli`)
 - Install requirement (`npm install`)
+- Install `arp-scan`; <br>
+  `arp-scan` needs to run as root without a password <br>
+  so edit `/etc/sudoers` and add the line <br>
+  `pi raspberrypi = (root) NOPASSWD: /usr/bin/arp-scan` <br>
+  where pi ist the username, raspberrypi the hostname
 - Run the app (`node speed.js`)
 - Check `log.csv` after a few hours 
 
 ### Web Interface auto update + history
+Also tracks the number of devices in the local network, except the gateway and the host of this tool <br>
+TODO: update picture
+
 ![Web interface](https://i.snag.gy/nd8ERc.jpg)
 
 ### Console Graph
+TODO: update console graph, so that it also shows discovered devices
+
 ![Console graph](https://i.snag.gy/i7gObk.jpg)
 
 ## Options

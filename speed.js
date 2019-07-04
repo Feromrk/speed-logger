@@ -8,7 +8,7 @@ var options = {
 	webInterfaceListenIp: "0.0.0.0", // IP to start server
 	enableCLICharts: false,          // Show graph in CLI
 	clearCLIBetweenTest: false,    // Clear screen between test
-	consoleLog: false,           // Output logging to console
+	consoleLog: true,           // Output logging to console
   secureDomains: null,          // Array of strings [ 'www.example.com' ]
   secureAdminEmail: 'youremail@here.com' //The admin for the secure email confirmation
 
@@ -106,12 +106,13 @@ if(options.enableWebInterface) {
 	io.sockets.on('connection', function (socket) {
 		//Read CSV to show history
 		var stream = fs.createReadStream(options.loggerFileName);
-		var pings = [], downloads = [], uploads = [];
+		var pings = [], downloads = [], uploads = [], devices = [];
 		var csvStream = csv()
 		  .on("data", function(data){
 			pings.push([(new Date(data[0])).getTime(), parseFloat(data[2])]);
 			downloads.push([(new Date(data[0])).getTime(), parseFloat(data[3])]);
 			uploads.push([(new Date(data[0])).getTime(), parseFloat(data[4])]);
+			devices.push([(new Date(data[0])).getTime(), parseInt(data[6])]);
 		});
 		stream.pipe(csvStream);
 
@@ -121,16 +122,21 @@ if(options.enableWebInterface) {
 		{
 			name:'Pings',
 			data: pings,
-			yAxis: 2
+			yAxis: 3
 		},
 		{
 			name: 'Downloads',
-			data: downloads
+			data: downloads,
+			yAxis: 1
 		},
 		{
 			name: 'Upload',
 			data: uploads,
-			yAxis: 1
+			yAxis: 2
+		},
+		{
+			name: 'Devices',
+			data: devices,
 		}
 		];
 		csvStream.on("end",function(){
@@ -162,6 +168,7 @@ function log_speed() {
 			pertinant_data[3] = out.download;
 			pertinant_data[4] = out.upload;
 			pertinant_data[5] = out.server.sponsor;
+			
 
 			if(options.clearCLIBetweenTest && options.enableCLICharts)
 				console.log('\033c');
@@ -170,10 +177,45 @@ function log_speed() {
 			if(options.consoleLog)
 				console.log('{0} => IP: {1} | Ping: {2}ms | Download: {3} | Upload: {4} | Server: {5}'.format(pertinant_data[0], pertinant_data[1], pertinant_data[2], formatBytes(pertinant_data[3]), formatBytes(pertinant_data[4]), pertinant_data[5]));
 
+			//devices in network 
+			if(options.consoleLog)
+				console.log( "\n Running network discovery ..." );
+
+			try {
+				var ip_info = child.execSync( "ip route get 1.2.3.4 | awk '{ print $3, $7 }'" ).toString().split(" ");
+			} catch(e) {
+				console.log(e.stderr.toString())
+			}
+
+			try {
+				var discovery = child.execSync( "sudo arp-scan -l -r10" ).toString();
+			} catch(e) {
+				console.log(e.stderr.toString());
+			}
+			
+			if(ip_info && discovery) {
+				var discovered = parseInt(discovery.match(/[0-9]*(?=\sresponded)/));
+				var duplicates = (discovery.match(/DUP/g) || []).length;
+
+				discovered-= duplicates;
+
+				if(discovery.includes(ip_info[0].trim())) {
+					discovered--;
+				}
+
+				if(discovery.includes(ip_info[1].trim())) {
+					discovered--;
+				}
+			}
+
+			if(options.consoleLog)
+				console.log("devices in network " + discovered)
+
+
 			if(options.enableWebInterface) {
 				//Append to html chart
 				var tt = (new Date(pertinant_data[0])).getTime();
-				io.sockets.emit('update', [[tt, pertinant_data[2]], [tt, pertinant_data[3]], [tt, pertinant_data[4]]]);
+				io.sockets.emit('update', [[tt, pertinant_data[2]], [tt, pertinant_data[3]], [tt, pertinant_data[4]], [tt, discovered]]);
 			}
 
 			//ASCII chart
@@ -197,7 +239,7 @@ function log_speed() {
 			}
 
 			if(options.logger) {
-				logger.write( pertinant_data.join(',') );
+				logger.write( pertinant_data.join(',') + ',' + discovered );
 				logger.write( '\r\n' );
 			}
 
@@ -213,6 +255,8 @@ function log_speed() {
 		setTimeout( log_speed, options.interval * 1000 ); // Run the test again
 
 	} );
+
+
 }
 
 log_speed();
