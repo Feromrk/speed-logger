@@ -1,4 +1,5 @@
 module.exports = function formatBytes(bytes,decimals,hide) {
+   bytes = parseInt(bytes)
    if(bytes == 0) return '0 Bytes';
    var k = 1000,
        dm = decimals || 2,

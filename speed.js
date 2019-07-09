@@ -154,18 +154,20 @@ if(options.enableCLICharts) {
 
 function log_speed() {
 	if(options.consoleLog)
-		console.log( "\n Running test ..." );
+		console.log( "\n Running speedtest ..." );
 
-	var tester = child.exec( 'speedtest-cli --json' );
+//	var tester = child.exec( 'speedtest-cli --json' );
+    var tester = child.exec('curl -w "{\\"download\\":\\"%{speed_download}\\",\\"ping\\":\\"%{time_connect}\\",\\"upload\\":\\"%{speed_upload}\\",\\"client\\":{\\"ip\\":\\"%{remote_ip}\\"},\\"server\\":{\\"sponsor\\":\\"unknown\\"}}" -s -o /dev/null http://speedtest.tele2.net/10MB.zip');
 
 	tester.stdout.on( 'data', function( data ) {
 		try {
+            console.log(data);
 			var out = JSON.parse(data);
 			var pertinant_data = [];
 			pertinant_data[0] = date('Y-m-d H:i:s');
 			pertinant_data[1] = out.client.ip;
-			pertinant_data[2] = out.ping;
-			pertinant_data[3] = out.download;
+			var tmp = parseFloat(out.ping.replace(',', '.'))*1000; pertinant_data[2] = tmp.toFixed(2);
+			pertinant_data[3] = parseFloat(out.download.replace(',', '.'))*8;
 			pertinant_data[4] = out.upload;
 			pertinant_data[5] = out.server.sponsor;
 			
@@ -181,35 +183,36 @@ function log_speed() {
 			if(options.consoleLog)
 				console.log( "\n Running network discovery ..." );
 
-			try {
-				var ip_info = child.execSync( "ip route get 1.2.3.4 | awk '{ print $3, $7 }'" ).toString().split(" ");
-			} catch(e) {
-				console.log(e.stderr.toString())
+
+			var ip_info = child.execSync( "ip route get 1.2.3.4 | awk '{ print $3, $7 }'" ).toString().split(" ");
+			var discovery = child.execSync( "sudo arp-scan -l -r10" ).toString();
+
+			var discovered = parseInt(discovery.match(/[0-9]*(?=\sresponded)/));
+			var duplicates = (discovery.match(/DUP/g) || []).length;
+
+			//remove duplicates from arp-scan
+			discovered-= duplicates;
+
+			//remove gateway
+			if(discovery.includes(ip_info[0].trim())) {
+				discovered--;
 			}
 
-			try {
-				var discovery = child.execSync( "sudo arp-scan -l -r10" ).toString();
-			} catch(e) {
-				console.log(e.stderr.toString());
+			//remove own device
+			if(discovery.includes(ip_info[1].trim())) {
+				discovered--;
 			}
-			
-			if(ip_info && discovery) {
-				var discovered = parseInt(discovery.match(/[0-9]*(?=\sresponded)/));
-				var duplicates = (discovery.match(/DUP/g) || []).length;
 
-				discovered-= duplicates;
-
-				if(discovery.includes(ip_info[0].trim())) {
-					discovered--;
+			if(discovered < 0) {
+				if(options.consoleLog) {
+					console.log("something went wrong, negative device count ... setting it to 0");
 				}
 
-				if(discovery.includes(ip_info[1].trim())) {
-					discovered--;
-				}
+				discovered = 0;
 			}
 
 			if(options.consoleLog)
-				console.log("devices in network " + discovered)
+				console.log("devices in network " + discovered);
 
 
 			if(options.enableWebInterface) {
